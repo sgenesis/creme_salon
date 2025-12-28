@@ -1,0 +1,27 @@
+<h2>Gestión de Usuarios</h2>
+
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Nombre</th>
+            <th>Activo</th>
+            <th>Rol</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for u in users %}
+        <tr>
+            <td>{{ u.email }}</td>
+            <td>{{ u.first_name }} {{ u.last_name }}</td>
+            <td>{{ u.is_active }}</td>
+            <td>{{ u.role }}</td>
+            <td>
+                <a href="{% url 'user-edit' u.id %}">Editar</a> |
+                <a href="{% url 'user-delete' u.id %}">Eliminar</a>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>

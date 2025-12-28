@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Confirmación de cita</title>
+
+<style>
+  body {
+    font-family: 'Helvetica', Arial, sans-serif;
+    background-color: #f8f5f3;
+    padding: 0;
+    margin: 0;
+  }
+
+  .container {
+    max-width: 520px;
+    margin: 30px auto;
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #e8ded7;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+  }
+
+  .logo {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #4D3A33;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+
+  .text {
+    color: #5a4a45;
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 18px;
+  }
+
+  .info-box {
+    background: #faf7f6;
+    border-left: 4px solid #4D3A33;
+    padding: 14px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+
+  .info-item {
+    margin-bottom: 6px;
+    font-size: 15px;
+    color: #4D3A33;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 25px;
+    font-size: 12px;
+    color: #8c7d77;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  
+  <div class="logo">
+    <img src="cid:creme_logo" alt="Crème Studio" width="180" />
+  </div>
+
+  <h2 class="title">✨ Tu cita ha sido confirmada</h2>
+
+  <p class="text">
+    Gracias por reservar con <b>Crême Studio</b>.  
+    Aquí tienes los detalles de tu cita:
+  </p>
+
+  <div class="info-box">
+    <p class="info-item"><b>📅 Fecha:</b> {{ date }}</p>
+    <p class="info-item"><b>⏰ Hora:</b> {{ time }}</p>
+    <p class="info-item"><b>💅 Servicio:</b> {{ services }}</p>
+    <p class="info-item"><b>👩‍🔧 Manicurista:</b> {{ employee }}</p>
+  </div>
+
+  <p class="text">
+    Si necesitas reprogramar o cancelar tu cita, puedes hacerlo desde tu panel de usuario.
+  </p>
+
+  <p class="footer">
+    Crème Studio · Gracias por confiar en nosotros 💛
+  </p>
+</div>
+
+</body>
+</html>
+

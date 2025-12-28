@@ -1,0 +1,9 @@
+<h2>Eliminar Usuario</h2>
+
+<p>¿Seguro que deseas eliminar al usuario <strong>{{ user.email }}</strong>?</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Sí, eliminar</button>
+    <a href="{% url 'user-list-html' %}">Cancelar</a>
+</form>

@@ -1,0 +1,9 @@
+<script>
+  localStorage.setItem("deposit_paid", "true");
+
+  if (window.opener) {
+    window.opener.postMessage("deposit_paid", "*");
+  }
+
+  window.close();
+</script>

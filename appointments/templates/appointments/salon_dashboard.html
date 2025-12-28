@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard | Crême Salón</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.cdnfonts.com/css/metropolis-2" rel="stylesheet">
+</head>
+
+<style>
+  :root {
+    --primary: #4D3A33;
+    --bg: #FAF7F6;
+    --panel: #ffffff;
+    --border: #E6D7D0;
+    --text: #4D3A33;
+  }
+  .dark {
+    --bg:#1A1615;
+    --panel:#241F1E;
+    --border:#3A2F2C;
+    --text:#E6D7D0;
+  }
+  body { background: var(--bg); font-family: 'Metropolis', sans-serif; transition: 0.3s; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .btn {
+    background: var(--primary);
+    color:#fff;
+    padding:10px 16px;
+    border-radius:10px;
+    font-weight:600;
+    transition:0.2s;
+  }
+  .btn:hover { opacity:0.9; transform: translateY(-1px); }
+  .btn-sm {
+    padding:6px 12px;
+    font-size:14px;
+  }
+  select, input {
+    padding:10px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:transparent;
+    color:var(--text);
+    outline:none;
+  }
+  select:focus, input:focus {
+    border-color:var(--primary);
+    box-shadow: 0 0 0 2px rgba(77,58,51,0.12)
+  }
+  .toggle-theme {
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    border: 1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+  }
+
+  /* Panel de resumen */
+  .summary-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    text-align: center;
+  }
+</style>
+
+<body class="min-h-screen">
+
+<!-- NAVBAR -->
+<nav class="flex items-center justify-between px-5 py-4 border-b" style="border-color:var(--border)">
+  <h2 class="text-xl font-bold" style="color:var(--primary)">Crême Salón</h2>
+  <!-- Caja Diaria -->
+  <div class="flex items-center gap-4">
+    {% if user.is_superuser or user.role == 'admin' %}
+        <a href="/api/appointments/admin-panel/" class="font-semibold" style="color:var(--text)">Administrador</a>
+        <a href="/api/appointments/ventas-rapidas/" class="font-semibold" style="color:var(--text)">Venta</a>
+    {% endif %}
+    <a href="/dashboard/">📊 Ventas</a>
+    <button onclick="logout()" class="font-semibold" style="color:var(--text)">Cerrar sesión</button>
+    <div class="toggle-theme" onclick="toggleTheme()">🌓</div>
+  </div>
+  <div id="cashPanel" class="p-4 mb-4 bg-white dark:bg-gray-800 shadow rounded">
+      <span id="cashStatusBadge" class="px-3 py-1 rounded text-white bg-red-500">
+        Caja cerrada
+      </span>
+
+      <button id="openCashBtn" class="btn px-3 py-1 bg-green-600 text-white rounded ml-4">
+        Abrir Caja
+      </button>
+
+      <button id="closeCashBtn" class="btn px-3 py-1 bg-yellow-600 text-white rounded ml-2 hidden">
+        Cerrar Caja
+      </button>
+  </div>
+
+  <!-- 🔥 Modal Resumen -->
+  <div id="cashModal" class="fixed inset-0 hidden bg-black/50 flex justify-center items-center">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded shadow-lg w-96">
+          <h2 class="text-lg font-bold mb-3">Resumen de Caja</h2>
+          <div id="cashModalBody"></div>
+          <button id="closeCashModalBtn" class="mt-4 btn bg-gray-700 text-white px-4 py-2 rounded">
+            Cerrar
+          </button>
+      </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- FILTROS + BUSCADOR -->
+  <section class="panel space-y-4">
+    <h2 class="text-lg font-bold">📅 Citas agendadas</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <select id="manicurist-select"></select>
+      <input type="date" id="date-input" />
+      <input type="text" id="search-input" placeholder="Buscar cliente / servicio…" />
+      <button class="btn w-full" id="filter-btn">Filtrar</button>
+    </div>
+
+    <div class="flex gap-3">
+      <button class="btn bg-gray-500" onclick="cargarTodas()">Ver todas</button>
+    </div>
+  </section>
+
+  <!-- PANEL DE RESUMEN -->
+  <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="summary-card">
+      <p class="text-sm opacity-70">Total citas</p>
+      <p id="sum-total" class="text-2xl font-bold"></p>
+    </div>
+    <div class="summary-card">
+      <p class="text-sm opacity-70">Citas completadas</p>
+      <p id="sum-completed" class="text-2xl font-bold"></p>
+    </div>
+    <div class="summary-card">
+      <p class="text-sm opacity-70">Ingresos estimados</p>
+      <p id="sum-total-price" class="text-2xl font-bold"></p>
+    </div>
+  </section>
+
+  <!-- TABLA -->
+  <section class="panel">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left border-b" style="border-color:var(--border)">
+            <th class="py-2">Cliente</th>
+            <th>Servicio</th>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Manicurista</th>
+            <th>Estado</th>
+            <th>Monto</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="appointments-body" class="divide-y" style="divide-color:var(--border)"></tbody>
+      </table>
+    </div>
+
+    <div id="empty-state" class="hidden text-center py-8 opacity-70">
+      <p>No hay citas para mostrar</p>
+    </div>
+
+  </section>
+
+</main>
+
+<script>
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie("csrftoken");
+
+// ------------------- THEME -------------------
+function toggleTheme(){
+  document.documentElement.classList.toggle("dark");
+  localStorage.setItem("theme", document.documentElement.classList.contains("dark") ? "dark" : "light");
+}
+if(localStorage.getItem("theme")==="dark") document.documentElement.classList.add("dark");
+
+// ------------------- LOGOUT -------------------
+async function logout() {
+  await fetch("/api/appointments/logout/", { method: "POST", credentials: "include" });
+  location.href = "/api/appointments/login/";
+}
+
+// ------------------- CARGAR MANICURISTAS -------------------
+async function cargarManicuristas() {
+  const res = await fetch('/api/appointments/manicurists/', {credentials:'include'});
+  const data = await res.json();
+
+  const select = document.getElementById("manicurist-select");
+  select.innerHTML = `<option value="">Todas las manicuristas</option>`;
+
+  data.forEach(m => {
+    select.innerHTML += `<option value="${m.id}">${m.user.first_name} ${m.user.last_name}</option>`;
+  });
+}
+
+// ------------------- RENDER CITAS -------------------
+function renderCitas(citas) {
+  const tbody = document.getElementById("appointments-body");
+  const empty = document.getElementById("empty-state");
+
+  tbody.innerHTML = "";
+
+  if (!citas.length) {
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  let total = 0;
+  let completed = 0;
+
+  citas.forEach(c => {
+    if (c.total_price) total += Number(c.total_price);
+    if (c.status === "completed") completed++;
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="py-3">${c.client_name}</td>
+        <td>${c.service_name}</td>
+        <td>${c.date}</td>
+        <td>${c.time}</td>
+        <td>${c.manicurist_name}</td>
+        <td>${c.status}</td>
+        <td>${c.total_price ? "$"+c.total_price : "-"}</td>
+        <td>
+          ${c.status === "scheduled"
+            ? `<button class="btn btn-sm" onclick="editarCita('${c.id}')">Cobrar / Completar</button>
+              <button class="btn btn-sm ghost" onclick="cancelarCita('${c.id}')">Cancelar</button>`
+            : `-`}
+        </td>
+      </tr>
+    `;
+  });
+
+  document.getElementById("sum-total").innerText = citas.length;
+  document.getElementById("sum-completed").innerText = completed;
+  document.getElementById("sum-total-price").innerText = "$" + total;
+}
+
+// ------------------- VER TODAS -------------------
+async function cargarTodas() {
+  const res = await fetch("/api/appointments/all-scheduled/", {credentials:"include"});
+  const citas = await res.json();
+  renderCitas(citas);
+}
+
+// ------------------- FILTRO Y BUSCADOR -------------------
+async function cargarCitas() {
+  const manicurist = document.getElementById("manicurist-select").value;
+  const date = document.getElementById("date-input").value;
+  const search = document.getElementById("search-input").value;
+
+  let url = "/api/appointments/appointments-list/";
+
+  const params = [];
+  if (manicurist) params.push(`manicurist=${manicurist}`);
+  if (date) params.push(`date=${date}`);
+  if (search) params.push(`search=${encodeURIComponent(search)}`);
+
+  if (params.length) url += "?" + params.join("&");
+
+  const res = await fetch(url, { credentials:'include' });
+  const citas = await res.json();
+  renderCitas(citas);
+}
+
+// ------------------- REDIRECCIÓN -------------------
+function editarCita(id) {
+  location.href = `/api/appointments/${id}/edit/`;
+}
+
+// ------------------- INIT -------------------
+document.getElementById("filter-btn").addEventListener("click", cargarCitas);
+document.getElementById("search-input").addEventListener("input", cargarCitas);
+
+cargarManicuristas();
+cargarTodas();
+
+async function cancelarCita(id) {
+  if (!confirm("¿Cancelar la cita?")) return;
+  try {
+    const res = await fetch(`/api/appointments/cancel/${id}/`, {
+      method: "POST",
+      // headers: {
+      //   "X-CSRFToken": csrftoken,
+      //   "Content-Type": "application/json"
+      // },
+      credentials: "include",
+      //body: JSON.stringify({})
+    });
+    if (res.ok) {
+      alert("Cita cancelada");
+      cargarTodas();
+    } else {
+      const txt = await res.text();
+      alert("Error cancelando: " + txt);
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Error de red");
+  }
+}
+
+// =========================
+//  cash-register.js
+// =========================
+
+// ---------------------- CSRF ----------------------
+// function getCookie(name) {
+//     let cookieValue = null;
+//     if (document.cookie && document.cookie !== "") {
+//         const cookies = document.cookie.split(";");
+
+//         for (let i = 0; i < cookies.length; i++) {
+//             const cookie = cookies[i].trim();
+
+//             if (cookie.substring(0, name.length + 1) === name + "=") {
+//                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+//                 break;
+//             }
+//         }
+//     }
+//     return cookieValue;
+// }
+// const csrftoken = getCookie("csrftoken");
+
+// Esperar a que exista el DOM
+document.addEventListener("DOMContentLoaded", () => {
+
+    // =========================
+    //  FUNCIONES PRINCIPALES
+    // =========================
+
+    window.cashIsOpen = false;
+
+    async function checkCashStatus() {
+        try {
+            const res = await fetch("/api/billing/status/", {
+                credentials: "include",
+            });
+
+            if (!res.ok) {
+                console.warn("status endpoint devolvió no-ok:", res.status);
+                return;
+            }
+
+            const data = await res.json();
+            window.cashIsOpen = !!data.is_open;
+
+            const badge = document.getElementById("cashStatusBadge");
+            const openBtn = document.getElementById("openCashBtn");
+            const closeBtn = document.getElementById("closeCashBtn");
+
+            // Si no existen en el DOM, no hacer nada
+            if (!badge || !openBtn || !closeBtn) {
+                console.warn("⚠️ Elementos de la caja no existen aún en el DOM");
+                return;
+            }
+
+            if (data.is_open) {
+                badge.textContent = "Caja abierta";
+                badge.classList.remove("bg-red-500");
+                badge.classList.add("bg-green-600");
+                openBtn.classList.add("hidden");
+                closeBtn.classList.remove("hidden");
+            } else {
+                badge.textContent = "Caja cerrada";
+                badge.classList.remove("bg-green-600");
+                badge.classList.add("bg-red-500");
+                openBtn.classList.remove("hidden");
+                closeBtn.classList.add("hidden");
+            }
+        } catch (err) {
+            console.error("Error checkCashStatus:", err);
+        }
+    }
+
+    // =========================
+    //  BLOQUEO DE ACCIONES
+    // =========================
+    window.requireCashOpen = function () {
+        if (!window.cashIsOpen) {
+            alert("⚠️ La caja está cerrada. Debes abrir la caja primero.");
+            return false;
+        }
+        return true;
+    };
+
+    // =========================
+    //  ABRIR CAJA
+    // =========================
+    const openBtn = document.getElementById("openCashBtn");
+    if (openBtn) {
+        openBtn.onclick = async () => {
+            const amount = prompt("Monto inicial en caja:");
+
+            if (amount === null) return;
+
+            try {
+                const res = await fetch("/api/billing/open/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrftoken,
+                    },
+                    credentials: "include",
+                    body: JSON.stringify({ opening_amount: amount }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert("Error: " + (data.error || data.detail || JSON.stringify(data)));
+                    return;
+                }
+
+                alert(data.message || "Caja abierta");
+                await checkCashStatus();
+            } catch (err) {
+                console.error(err);
+                alert("Error abriendo caja");
+            }
+        };
+    }
+
+    // =========================
+    //  CERRAR CAJA
+    // =========================
+    const closeBtn = document.getElementById("closeCashBtn");
+    if (closeBtn) {
+        closeBtn.onclick = async () => {
+            const amount = prompt("Monto final contado:");
+
+            if (amount === null) return;
+
+            try {
+                const res = await fetch("/api/billing/close/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrftoken,
+                    },
+                    credentials: "include",
+                    body: JSON.stringify({ closing_amount: amount }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert("Error: " + (data.error || data.detail || JSON.stringify(data)));
+                    return;
+                }
+
+                showCashModal(data.summary || {});
+                await checkCashStatus();
+            } catch (err) {
+                console.error(err);
+                alert("Error cerrando caja");
+            }
+        };
+    }
+
+    // =========================
+    //  MODAL DE RESUMEN
+    // =========================
+    function showCashModal(summary) {
+        const modal = document.getElementById("cashModal");
+        const body = document.getElementById("cashModalBody");
+        const closeModalBtn = document.getElementById("closeCashModalBtn");
+
+        if (!modal || !body) return;
+
+        body.innerHTML = `
+            <p><b>Fecha:</b> ${summary.business_date || new Date().toISOString().slice(0, 10)}</p>
+            <p><b>Monto inicial:</b> $${summary.opening_amount || "0.00"}</p>
+            <p><b>Total cobrado:</b> $${summary.total_collected || "0.00"}</p>
+            <p><b>Monto final contado:</b> $${summary.closing_amount || "0.00"}</p>
+        `;
+
+        modal.classList.remove("hidden");
+
+        if (closeModalBtn) {
+            closeModalBtn.onclick = () => modal.classList.add("hidden");
+        }
+    }
+
+    // Ejecutar estado inicial
+    checkCashStatus();
+});
+
+</script>
+<!-- Modal resumen de caja -->
+<div id="cashModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+        <h2 class="text-xl font-semibold mb-3">Resumen del día</h2>
+
+        <div id="cashModalBody" class="space-y-2">
+            <!-- Aquí el JS rellena los datos -->
+        </div>
+
+        <button id="closeCashModalBtn"
+                class="mt-4 w-full bg-gray-800 text-white py-2 rounded">
+            Cerrar
+        </button>
+    </div>
+</div>
+
+</body>
+</html>

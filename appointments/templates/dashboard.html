@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="panel" style="max-width:900px;margin:auto;padding:20px">
+  <h2>📊 Dashboard ventas</h2>
+
+  <div id="dash" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px">
+    <div class="card">Total ventas: <b id="totalSales"></b></div>
+    <div class="card">Total operaciones: <b id="countSales"></b></div>
+    <div class="card">Hoy: <b id="todaySales"></b></div>
+    <div class="card">Este mes: <b id="monthSales"></b></div>
+  </div>
+
+  <h3>Métodos de pago</h3>
+  <ul id="paymentBreakdown"></ul>
+
+  <h3>Ventas por día</h3>
+  <ul id="salesByDay"></ul>
+
+  <h3>Top productos/servicios</h3>
+  <ul id="topItems"></ul>
+
+  <!-- BOTONES -->
+<div style="margin-bottom:16px;">
+  <button onclick="exportExcel()">📥 Exportar a Excel</button>
+</div>
+
+<!-- TABLA HISTORIAL -->
+<h3>📋 Historial de Ventas</h3>
+<table border="1" width="100%">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Cliente</th>
+      <th>Fecha</th>
+      <th>Método</th>
+      <th>Total</th>
+      <th>Ticket</th>
+    </tr>
+  </thead>
+  <tbody id="salesTable"></tbody>
+</table>
+
+<!-- PAGINACIÓN -->
+<div style="margin-top:10px">
+  <button onclick="prevPage()">⬅ Anterior</button>
+  <span id="pageInfo">1</span>
+  <button onclick="nextPage()">Siguiente ➡</button>
+</div>
+
+</div>
+
+<style>
+.card{background:#fff;padding:16px;border-radius:10px;box-shadow:0 2px 8px #00000010}
+</style>
+
+<script>
+fetch('/api/sales/dashboard/')
+  .then(res => res.json())
+  .then(d => {
+
+    // ───────── RESUMEN PRINCIPAL ─────────
+    const summary = d.summary || {};
+
+    document.getElementById('totalSales').innerText =
+      `$${summary.total_sales ?? 0}`;
+
+    document.getElementById('countSales').innerText =
+      `${summary.count_sales ?? 0}`;
+
+    document.getElementById('todaySales').innerText =
+      `$${d.today_sales ?? 0}`;        // si lo agregas en backend, si no queda 0
+
+    document.getElementById('monthSales').innerText =
+      `$${d.month_sales ?? 0}`;        // si lo agregas en backend, si no queda 0
+
+
+    // ───────── MÉTODOS DE PAGO ─────────
+    const paymentBox = document.getElementById('paymentBreakdown');
+    paymentBox.innerHTML = '';
+
+    if (!d.by_payment || d.by_payment.length === 0) {
+      paymentBox.innerHTML = `<li>No hay pagos registrados</li>`;
+    } else {
+      d.by_payment.forEach(p => {
+        const method = p.payment_method || 'N/A';
+        const total = p.total ?? 0;
+        const count = p.count ?? 0;
+        paymentBox.innerHTML += `<li>${method}: $${total} (${count})</li>`;
+      });
+    }
+
+
+    // ───────── VENTAS POR DÍA ─────────
+    const dayBox = document.getElementById('salesByDay');
+    dayBox.innerHTML = '';
+
+    if (!d.by_day || d.by_day.length === 0) {
+      dayBox.innerHTML = `<li>No hay ventas por día</li>`;
+    } else {
+      d.by_day.forEach(x => {
+        const day = x.day || '—';
+        const total = x.total ?? 0;
+        const count = x.count ?? 0;
+        dayBox.innerHTML += `<li>${day} → $${total} (${count} ventas)</li>`;
+      });
+    }
+
+
+    // ───────── TOP PRODUCTOS/SERVICIOS ─────────
+    const topBox = document.getElementById('topItems');
+    topBox.innerHTML = '';
+
+    if (!d.top_items || d.top_items.length === 0) {
+      topBox.innerHTML = `<li>No hay productos/servicios vendidos</li>`;
+    } else {
+      d.top_items.forEach(t => {
+        const name = t.product__name || 'Servicio sin nombre';
+        const total = t.total ?? 0;
+        const count = t.count ?? 0;
+        topBox.innerHTML += `<li>${name} → $${total} (${count})</li>`;
+      });
+    }
+
+  })
+  .catch(err => {
+    console.error("Error dashboard:", err);
+    document.getElementById('totalSales').innerText = "$0";
+    document.getElementById('countSales').innerText = "0";
+  });
+
+  let salesData = [];
+let currentPage = 1;
+const pageSize = 5;
+
+function loadSales() {
+  fetch('/api/sales/history/')
+    .then(r => r.json())
+    .then(data => {
+      salesData = data;
+      renderTable();
+    });
+}
+
+function renderTable() {
+  const tbody = document.getElementById("salesTable");
+  tbody.innerHTML = "";
+
+  const start = (currentPage - 1) * pageSize;
+  const end = start + pageSize;
+  const pageItems = salesData.slice(start, end);
+
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6">No hay ventas registradas</td></tr>`;
+    return;
+  }
+
+  pageItems.forEach(s => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${s.id}</td>
+        <td>${s.client ?? "—"}</td>
+        <td>${s.date}</td>
+        <td>${s.payment_method}</td>
+        <td>$${s.total}</td>
+        <td><button onclick="openTicket('${s.id}')">🧾 Ticket</button></td>
+      </tr>
+    `;
+  });
+
+  document.getElementById("pageInfo").innerText = `Página ${currentPage}`;
+}
+
+function nextPage() {
+  if (currentPage * pageSize < salesData.length) {
+    currentPage++;
+    renderTable();
+  }
+}
+
+function prevPage() {
+  if (currentPage > 1) {
+    currentPage--;
+    renderTable();
+  }
+}
+
+// ✅ Abrir ticket PDF
+function openTicket(id) {
+  window.open(`/api/sales/${id}/ticket/`, '_blank');
+}
+
+// ✅ Exportar a Excel
+function exportExcel() {
+  window.location.href = "/api/sales/export-excel/";
+}
+
+// Cargar ventas al entrar
+loadSales();
+
+
+</script>
+
+{% endblock %}

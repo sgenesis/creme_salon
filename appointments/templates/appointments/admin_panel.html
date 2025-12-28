@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Panel Admin - Usuarios{% endblock %}
+
+{% block content %}
+<style>
+.panel { max-width:980px; margin:32px auto; background:#fff; padding:18px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,0.06); }
+.table { width:100%; border-collapse:collapse; }
+.table th, .table td { padding:8px 10px; border-bottom:1px solid #f0e7e5; text-align:left; }
+.btn { background:#4D3A33; color:#fff; padding:8px 10px; border-radius:8px; border:none; cursor:pointer; }
+.btn.ghost { background:transparent; color:#4D3A33; border:1px solid #E6D7D0; }
+.input { padding:10px 12px; border-radius:8px; border:1px solid #ddd; width:100%; box-sizing:border-box;}
+.small { width:120px; }
+.flex { display:flex; gap:8px; align-items:center; }
+.card { background:#fff; padding:12px; border-radius:8px; border:1px solid #F0EAEA; }
+</style>
+
+<div class="panel"> 
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <h2 style="margin:0;color:#4D3A33;">Gestión de usuarios</h2>
+    <div>
+      <button class="btn" id="btnNew">Crear usuario</button>
+    </div>
+  </div>
+
+  <div class="card" id="usersCard">
+    <table class="table" id="usersTable">
+      <thead>
+        <tr>
+          <th>Usuario</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Staff</th><th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL CREAR/EDITAR (simple) -->
+<div id="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center;">
+  <div style="background:#fff; padding:16px; border-radius:10px; width:420px;">
+    <h3 id="modalTitle">Crear usuario</h3>
+    <div style="display:grid; gap:8px; margin-top:8px;">
+      <input id="u_username" class="input" placeholder="Usuario" />
+      <input id="u_first_name" class="input" placeholder="Nombre" />
+      <input id="u_last_name" class="input" placeholder="Apellido" />
+      <input id="u_email" class="input" placeholder="Email" />
+      <select id="u_role" class="input">
+        <option value="client">Cliente</option>
+        <option value="employee">Manicurista</option>
+        <option value="admin">Administrador</option>
+      </select>
+      <label><input type="checkbox" id="u_is_staff"> Es staff</label>
+      <input id="u_password" class="input" placeholder="Password (dejar vacío para no cambiar)" />
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn" id="saveUserBtn">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const apiBase = '/api/users/';
+const tbody = document.querySelector("#usersTable tbody");
+let editingId = null;
+
+async function fetchJSON(url, opts){ 
+  const r = await fetch(url, Object.assign({credentials:'include', headers:{'X-CSRFToken': getCookie('csrftoken')}}, opts));
+  return r;
+}
+
+async function loadUsers(){
+  const res = await fetchJSON(apiBase + 'list/');
+  if(!res.ok) return alert('Error cargando usuarios');
+  const data = await res.json();
+  const users = data.results;   // <-- importante
+  tbody.innerHTML = '';
+
+  users.forEach(u => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${u.username}</td>
+        <td>${u.first_name} ${u.last_name}</td>
+        <td>${u.email || '-'}</td>
+        <td>${u.role}</td>
+        <td>${u.is_staff ? 'Sí' : 'No'}</td>
+        <td>
+          <button class="btn ghost" onclick="openEdit(${u.id})">Editar</button>
+          <button class="btn" onclick="deleteUser(${u.id})">Eliminar</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+document.getElementById('btnNew').onclick = () => openCreate();
+
+function openCreate(){
+  editingId = null;
+  document.getElementById('modalTitle').innerText = 'Crear usuario';
+  document.getElementById('u_username').value = '';
+  document.getElementById('u_first_name').value = '';
+  document.getElementById('u_last_name').value = '';
+  document.getElementById('u_email').value = '';
+  document.getElementById('u_role').value = 'client';
+  document.getElementById('u_is_staff').checked = false;
+  document.getElementById('u_password').value = '';
+  document.getElementById('modal').style.display = 'flex';
+}
+
+async function openEdit(id){
+  const r = await fetchJSON(apiBase + 'list/');
+  const data = await r.json();
+  const users = data.results;   // AHORA sí es un array
+
+  const u = users.find(x => x.id === id);
+  if(!u) return alert('Usuario no encontrado');
+  editingId = id;
+  document.getElementById('modalTitle').innerText = 'Editar usuario';
+  document.getElementById('u_username').value = u.username;
+  document.getElementById('u_first_name').value = u.first_name;
+  document.getElementById('u_last_name').value = u.last_name;
+  document.getElementById('u_email').value = u.email;
+  document.getElementById('u_role').value = u.role;
+  document.getElementById('u_is_staff').checked = u.is_staff;
+  document.getElementById('u_password').value = '';
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal(){ document.getElementById('modal').style.display = 'none'; }
+
+document.getElementById('saveUserBtn').onclick = async () => {
+  const payload = {
+    username: document.getElementById('u_username').value,
+    first_name: document.getElementById('u_first_name').value,
+    last_name: document.getElementById('u_last_name').value,
+    email: document.getElementById('u_email').value,
+    role: document.getElementById('u_role').value,
+    is_staff: document.getElementById('u_is_staff').checked,
+  };
+  const pwd = document.getElementById('u_password').value;
+  if(pwd) payload.password = pwd;
+
+  let res;
+  if(editingId){
+    res = await fetchJSON(apiBase + editingId + '/update/', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+      headers: {'Content-Type':'application/json'}
+    });
+  } else {
+    res = await fetchJSON(apiBase + 'register/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: {'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')}
+    });
+  }
+
+  if(res.ok){
+    closeModal();
+    loadUsers();
+  } else {
+    alert('Error guardando usuario');
+    console.error(await res.text());
+  }
+};
+
+async function deleteUser(id){
+  if(!confirm('Eliminar usuario?')) return;
+  const res = await fetchJSON(apiBase + id + '/delete/', { method: 'DELETE' });
+  if(res.ok) loadUsers();
+  else { alert('Error eliminando'); console.error(await res.text()); }
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.startsWith(name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+loadUsers();
+</script>
+{% endblock %}

@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agendar cita | Crême Salón</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<style>
+  :root {
+  --primary: #4D3A33;
+  --bg: #FAF7F6;
+  --panel: #ffffff;
+  --border: #E6D7D0;
+
+  /* Mejores colores de texto */
+  --text: #3B2A25;           /* Más oscuro */
+  --text-strong: #2A1D18;    /* Para títulos */
+  --text-soft: #6D564D;      /* Para subtítulos */
+  }
+
+  
+  .dark {
+    --bg:#1A1615;
+    --panel:#241F1E;
+    --border:#3A2F2C;
+    --text:#E6D7D0;
+  }
+
+  body {
+    background: var(--bg);
+    transition: 0.3s;
+  }
+
+  .panel {
+    max-width: 460px;
+    width: 95%;
+    margin: 30px auto;
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 26px;
+    box-shadow: 0 6px 25px rgba(0,0,0,0.08);
+    border: 1px solid var(--border);
+    animation: fadeIn 0.4s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity:0; transform: translateY(12px); }
+    to { opacity:1; transform: translateY(0); }
+  }
+
+  .btn {
+    background:var(--primary);
+    color:#fff;
+    padding:12px;
+    border-radius:10px;
+    width:100%;
+    font-weight:600;
+    transition: 0.2s;
+  }
+
+  .btn:hover { transform: translateY(-1px); opacity:0.9 }
+
+  .btn.ghost {
+    background:transparent;
+    color:var(--text);
+    border:1px solid var(--border);
+  }
+
+  select, input {
+    padding:12px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    width:100%;
+    outline:none;
+    background:transparent;
+    color:var(--text);
+  }
+
+    /* Mejora visual para selects — padding real visible */
+  select {
+    padding: 12px !important;
+    background-color: transparent;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    color: var(--text);
+    appearance: none;
+    -moz-appearance: none;  /* Fix Firefox */
+    -webkit-appearance: none;
+  }
+
+  /* Ícono ▼ más visible */
+  select {
+    background-image: linear-gradient(45deg, transparent 50%, var(--text) 50%),
+                      linear-gradient(135deg, var(--text) 50%, transparent 50%);
+    background-position: calc(100% - 20px) calc(50% - 6px),
+                        calc(100% - 15px) calc(50% + 6px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+  }
+
+
+  .toggle-theme {
+    position:absolute;
+    top:18px;
+    right:18px;
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    border: 1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+  }
+
+  .slot-btn {
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .slot-btn.active {
+    background: var(--primary);
+    color: white;
+  }
+  @media (max-height: 740px) {
+  .panel {
+    margin: 10px auto;
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+
+  .appointment-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    color: var(--text); /* usa tu color dinámico */
+  }
+
+  .appointment-card p {
+    color: var(--text);
+    opacity: 0.9;
+  }
+
+  .dark .appointment-card p {
+    color: #F5EDE9; /* más claro en dark mode */
+    opacity: 0.95;
+  }
+
+  .dark .appointment-card b {
+    color: #FFF;
+  }
+
+  #service_manos {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  #service_pies {
+    margin-top: 14px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  #confirmBtn {
+    
+    margin-bottom: 14px;
+  }
+
+}
+
+
+</style>
+<!-- MODAL CONFIRMACIÓN -->
+<div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-40 hidden flex justify-center items-center p-3">
+  <div class="bg-white dark:bg-[#241F1E] rounded-xl w-full max-w-sm p-5 shadow-xl">
+    <h2 class="text-xl font-semibold mb-2" style="color:var(--text)">Confirmar cita</h2>
+    <p id="modalText" class="text-sm mb-4" style="color:var(--text);opacity:0.8"></p>
+    <div class="flex gap-3">
+      <button id="cancelModal" class="btn ghost flex-1">Cancelar</button>
+      <a id="mp-pay-btn" target="_blank" class="btn btn-success">
+        Pagar anticipo
+      </a>
+      <button id="confirm-appointment-btn" class="btn btn-success" disabled>
+        Confirmar cita
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- MODAL PERFIL -->
+<div id="profileModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+  <div class="bg-white dark:bg-[#241F1E] p-5 rounded-xl w-[90%] max-w-sm">
+    <h2 class="text-lg font-bold mb-3">Mi Perfil</h2>
+    <div id="profileContent" class="text-sm"></div>
+    <button class="btn mt-4" onclick="profileModal.classList.add('hidden')">Cerrar</button>
+  </div>
+</div>
+
+<!-- MODAL MIS CITAS -->
+<div id="appointmentsModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+  <div class="bg-white dark:bg-[#241F1E] p-5 rounded-xl w-[95%] max-w-md max-h-[80vh] overflow-y-auto">
+    <h2 class="text-lg font-bold mb-3">Mis citas</h2>
+    <div id="appointmentsContent" class="text-sm space-y-2"></div>
+    <button class="btn mt-4" onclick="appointmentsModal.classList.add('hidden')">Cerrar</button>
+  </div>
+</div>
+
+<!-- MODAL REAGENDAR -->
+<div id="rescheduleModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+  <div class="bg-white dark:bg-[#241F1E] p-6 rounded-xl w-[90%] max-w-sm">
+    <h2 class="text-lg font-bold mb-3">♻️ Reagendar cita</h2>
+    <div id="rescheduleInfo" class="text-sm mb-4 text-gray-700 dark:text-gray-300"></div>
+
+    <label class="block text-sm font-semibold mb-1">Nueva fecha</label>
+    <input type="date" id="newDate" class="mb-3 w-full p-2 border rounded-lg" />
+
+    <label class="block text-sm font-semibold mb-1">Horarios disponibles</label>
+    <div id="availableTimes" class="flex flex-wrap gap-2 mb-4"></div>
+
+    <div class="flex gap-3">
+      <button class="btn ghost flex-1" onclick="rescheduleModal.classList.add('hidden')">Cancelar</button>
+      <button class="btn flex-1" id="confirmRescheduleBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADER SPINNER -->
+<div id="loader" class="hidden fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+  <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+</div>
+
+<!-- SONIDOS -->
+<audio id="successSound" src="https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3"></audio>
+<audio id="errorSound" src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
+
+
+<div id="toast" class="fixed top-4 right-4 px-4 py-2 rounded-lg text-white font-semibold shadow-lg opacity-0 transition"></div>
+
+<script>
+function showToast(msg, ok=true){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white font-semibold shadow-lg transition ${
+    ok ? "bg-green-600" : "bg-red-600"
+  } opacity-100`;
+
+  setTimeout(()=> t.classList.add("opacity-0"), 3000);
+}
+</script>
+
+
+<body class="flex items-center justify-center min-h-screen relative">
+
+<div class="toggle-theme" onclick="toggleTheme()">🌓</div>
+
+
+<div class="panel">
+
+  <div class="text-center mb-6">
+    <h1 class="text-2xl font-bold" style="color:var(--primary)">Crême Studio</h1>
+    <p class="text-sm" style="color:var(--text);opacity:0.7">Agendar tu cita</p>
+    
+  </div>
+
+  <!-- MANICURISTA -->
+  <div class="mb-4">
+    <label class="block font-semibold mb-1" style="color:var(--text)">Manicurista</label>
+    <select id="manicuristSelect"></select>
+    <p id="bioText" class="text-sm mt-1" style="color:var(--text);opacity:0.7"></p>
+  </div>
+
+  <!-- FECHA -->
+  <div class="mb-4">
+    <label class="block font-semibold mb-1" style="color:var(--text)">Fecha</label>
+    <input type="date" id="datePicker">
+  </div>
+
+  <!-- HORARIOS -->
+  <div class="mb-4">
+    <label class="block font-semibold mb-1" style="color:var(--text)">Horarios</label>
+    <div id="slotsContainer" class="flex flex-wrap gap-2"></div>
+  </div>
+
+  <!-- SERVICIOS -->
+  <select id="service_manos">
+    <option value="">— Manicura —</option>
+  </select>
+
+  <select id="service_pies">
+      <option value="">— Pedicura —</option>
+  </select>
+
+
+  <button id="confirmBtn" class="btn" disabled>Confirmar cita</button>
+
+  <div><button id="logoutBtn" class="btn ghost mb-3">Cerrar sesión</button></div>
+
+  <button id="profileBtn" class="btn ghost mb-2">👤 Ver mi perfil</button>
+  <button id="myAppointmentsBtn" class="btn ghost mb-3">📅 Mis citas</button>
+
+    <!-- Modal Anticipo -->
+  <div id="depositModal" class="modal hidden">
+      <div class="modal-content">
+          <h3>Anticipo requerido</h3>
+          <p>Debes pagar un anticipo de: <span id="depositAmount"></span></p>
+
+          <button id="payDepositBtn">Pagar anticipo</button>
+      </div>
+  </div>
+
+  
+
+</div>
+
+<script>
+  
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  datePicker.min = new Date().toISOString().split("T")[0];
+  window.location.href = "/api/appointments/login/";
+  
+
+});
+  function toggleTheme(){
+    document.documentElement.classList.toggle("dark");
+    localStorage.setItem("theme", document.documentElement.classList.contains("dark") ? "dark" : "light");
+  }
+  if(localStorage.getItem("theme")==="dark") document.documentElement.classList.add("dark");
+
+  const manicuristSelect = document.getElementById('manicuristSelect');
+  const datePicker = document.getElementById('datePicker');
+  const slotsContainer = document.getElementById('slotsContainer');
+  // const serviceSelect = document.getElementById('serviceSelect');
+
+  let allServices = [];  // <- agregar arriba
+  const summaryModal = document.getElementById('summaryModal');
+  const summaryDetails = document.getElementById('summaryDetails');
+  const closeModalBtn = document.getElementById('closeModalBtn');
+  const tooltip = document.getElementById('tooltip');
+  const bioText = document.getElementById('bioText');
+  const confirmBtn = document.getElementById("confirmBtn");
+  const manosSelect = document.getElementById("service_manos");
+  const piesSelect = document.getElementById("service_pies");
+
+  let manicuristBio = {};
+  let selectedSlot = null;
+  datePicker.min = new Date().toISOString().split("T")[0];
+
+  async function apiGET(url) {
+    return fetch(url, { credentials: "include" });
+  }
+
+  const formatDuration = (hours) => {
+    const num = parseFloat(hours);
+    return num === 1 ? "1 hora" : `${num} horas`;
+  };
+
+  async function loadManicurists() {
+    const res = await apiGET("/api/appointments/manicurists/");
+    if (!res.ok) return console.error("Error cargando manicuristas");
+    const data = await res.json();
+    manicuristSelect.innerHTML = `<option value="">-- Seleccionar --</option>`;
+    data.forEach(m => {
+      manicuristSelect.innerHTML += `<option value="${m.id}">${m.user.first_name} ${m.user.last_name}</option>`;
+      manicuristBio[m.id] = m.bio;
+    });
+  }
+
+  manicuristSelect.addEventListener("change", () => {
+    bioText.textContent = manicuristBio[manicuristSelect.value] || "";
+    loadSlots();
+  });
+
+  datePicker.addEventListener("change", loadSlots);
+  async function loadSlots() {
+  const employeeId = manicuristSelect.value;
+  const date = datePicker.value;
+
+  // ✅ Validación para evitar llamar al backend sin datos
+  if (!employeeId) {
+    slotsContainer.innerHTML = `<p class="text-sm opacity-70">Selecciona una manicurista</p>`;
+    return;
+  }
+
+  if (!date) {
+    slotsContainer.innerHTML = `<p class="text-sm opacity-70">Selecciona una fecha</p>`;
+    return;
+  }
+
+  /* ---------- Servicios ---------- */
+  const formatDuration = hours => {
+  const num = parseFloat(hours);
+    return num === 1 ? "1 hora" : `${num} horas`;
+  };
+
+  // 🌀 Mostrar mini loader
+  slotsContainer.innerHTML = `
+    <div class="flex justify-center items-center w-full py-4">
+      <div class="w-6 h-6 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  `;
+
+  try {
+    const res = await apiGET(`/api/appointments/available/${employeeId}/?date=${date}`);
+    if (!res.ok) throw new Error("Error al cargar horarios");
+
+    const data = await res.json();
+    slotsContainer.innerHTML = "";
+
+    if (!data.available_slots?.length) {
+      slotsContainer.innerHTML = `<p class="text-sm opacity-70">No hay horarios disponibles.</p>`;
+      return;
+    }
+
+    data.available_slots.forEach(time => {
+      const btn = document.createElement("button");
+      btn.textContent = time;
+      btn.className = "slot-btn";
+      btn.onclick = () => {
+        selectedSlot = time;
+        document.querySelectorAll(".slot-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        confirmBtn.disabled = false;
+      };
+      slotsContainer.appendChild(btn);
+    });
+
+  } catch (err) {
+    console.error(err);
+    slotsContainer.innerHTML = `<p class="text-sm text-red-600">Error al cargar horarios</p>`;
+  }
+  console.log("🔍 employeeId =", employeeId);
+  console.log("📅 fecha =", date);
+}
+
+  async function loadServices() {
+    try {
+        const res = await fetch("/api/appointments/services/");
+        if (!res.ok) throw new Error("Error al cargar servicios");
+
+        const data = await res.json();   // ← AQUÍ sí definimos data
+        allServices = data;      // ← Guardamos en la variable global
+
+        // Limpiar selects
+        manosSelect.innerHTML = `<option value="">— Manicure —</option>`;
+        piesSelect.innerHTML  = `<option value="">— Pedicure —</option>`;
+
+        allServices.forEach(s => {
+            const line = `${s.name} - ${formatDuration(s.duration_hours)}`;
+            const option = `<option value="${s.id}">${s.name} - ${formatDuration(s.duration_hours)}</option>`;
+
+            if (s.category === "manos") manosSelect.innerHTML += option;
+            if (s.category === "pies")  piesSelect.innerHTML += option;
+        });
+
+    } catch (err) {
+        console.error("Error cargando servicios:", err);
+    }
+}
+
+function calculateDeposit(total) {
+    return (total * 0.20).toFixed(2);
+}
+
+
+//loadServices();
+
+  function getTotalDuration() {
+    let total = 0;
+
+    const selectedManos = manosSelect.value;
+    const selectedPies  = piesSelect.value;
+
+    if (selectedManos) {
+        const s = allServices.find(x => x.id == selectedManos);
+        if (s) total += parseFloat(s.duration_hours ||  0);
+    }
+
+    if (selectedPies) {
+        const s = allServices.find(x => x.id == selectedPies);
+        if (s) total += parseFloat(s.duration_hours || 0);
+    }
+
+    return total;
+  }
+
+  function calculateTotalPrice() {
+    let total = 0;
+
+    if (manosSelect.value) {
+      const s = allServices.find(x => x.id == manosSelect.value);
+      if (s) total += parseFloat(s.price);
+    }
+
+    if (piesSelect.value) {
+      const s = allServices.find(x => x.id == piesSelect.value);
+      if (s) total += parseFloat(s.price);
+    }
+
+    return total;
+  }
+
+
+  const confirmModal = document.getElementById("confirmModal");
+  const modalText    = document.getElementById("modalText");
+  const cancelModal  = document.getElementById("cancelModal");
+  const acceptModal  = document.getElementById("acceptModal");
+  const toast        = document.getElementById("toast");
+  
+
+
+function showToast(msg, ok=true){
+  toast.textContent = msg;
+  toast.style.background = ok ? "#4CAF50" : "#E53935";
+  toast.classList.remove("opacity-0");
+  setTimeout(()=> toast.classList.add("opacity-0"), 3000);
+}
+
+/* ---------- Confirmar cita (abrir modal) ---------- */
+confirmBtn.addEventListener("click", async() => {
+
+    const selectedManos = manosSelect.value;
+    const selectedPies  = piesSelect.value;
+
+    if (!manicuristSelect.value)
+        return showToast("Selecciona una manicurista", false);
+
+    if (!selectedManos && !selectedPies)
+        return showToast("Elige al menos un servicio", false);
+
+    if (!datePicker.value)
+        return showToast("Selecciona una fecha", false);
+
+    if (!selectedSlot)
+        return showToast("Selecciona un horario", false);
+
+    const totalPrice = calculateTotalPrice();
+    const depositAmount = calculateDeposit(totalPrice);
+    const totalDuration = getTotalDuration();
+    
+
+
+    // 📌 Creamos arreglo de servicios
+    const serviciosSeleccionados = [];
+    if (selectedManos) serviciosSeleccionados.push(selectedManos);
+    if (selectedPies)  serviciosSeleccionados.push(selectedPies);
+
+    confirmModal.classList.remove("hidden");
+    document.getElementById("confirm-appointment-btn").disabled = true;
+    localStorage.removeItem("deposit_paid");
+
+
+    const payload = {
+        employee: manicuristSelect.value,
+        service_manos: selectedManos || null,
+        service_pies: selectedPies || null,
+        date: datePicker.value,
+        time: selectedSlot,
+        duration_hours: totalDuration,
+        notes: ""
+    };
+
+    
+
+      if (!payload.employee) return showToast("Selecciona una manicurista", false);
+      if (!payload.service_manos && !payload.service_pies)
+        return showToast("Selecciona al menos un servicio", false);
+      if (!payload.date)     return showToast("Selecciona una fecha", false);
+      if (!payload.time)     return showToast("Selecciona un horario", false);
+
+      // ==== Render del modal ====
+
+
+    let serviciosTexto = serviciosSeleccionados
+        .map(id => {
+            const s = allServices.find(x => x.id == id);
+            return `${s.name} (${formatDuration(s.duration_hours)})`;
+        })
+        .join("<br>");
+
+    modalText.innerHTML = `
+        <b>Manicurista:</b> ${manicuristSelect.options[manicuristSelect.selectedIndex].text}<br>
+        <b>Servicios:</b><br>${serviciosTexto}<br>
+        <b>Duración total:</b> ${formatDuration(totalDuration)}<br>
+        <b>Fecha:</b> ${payload.date}<br>
+        <b>Hora:</b> ${payload.time}
+        <br><b>Total:</b> $${totalPrice.toFixed(2)}
+        <br><b>Anticipo (20%):</b> $${depositAmount}
+    `;
+
+    confirmModal.classList.remove("hidden");
+    const confirmAppointmentBtn = document.getElementById("confirm-appointment-btn");
+    confirmAppointmentBtn.disabled = true;
+
+    const resPending = await fetch("/api/appointments/create-pending/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken")
+      },
+      credentials: "include",
+      body: JSON.stringify(payload)
+    });
+
+    if (!resPending.ok) {
+      return showToast("Error creando cita pendiente", false);
+    }
+
+    const pendingData = await resPending.json();
+    const appointmentId = pendingData.appointment_id;
+
+
+    document.getElementById("mp-pay-btn").onclick = async () => {
+      confirmAppointmentBtn.disabled = true;
+
+      const res = await fetch("/api/payments/create-preference/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({
+          total_price: calculateTotalPrice(),
+          appointment_id: appointmentId
+        })
+      });
+
+      const data = await res.json();
+      window.location.href = data.init_point;
+    };
+
+    // Guardamos temporal
+    window.tempPayload = payload;
+});
+
+window.addEventListener("message", (event) => {
+  if (event.data === "deposit_paid") {
+    localStorage.setItem("deposit_paid", "true");
+
+    document.getElementById("confirm-appointment-btn").disabled = false;
+    showToast("✅ Anticipo pagado, ya puedes confirmar tu cita");
+  }
+});
+
+
+
+//MOdal Acciones
+cancelModal.onclick = () => confirmModal.classList.add("hidden");
+
+if(acceptModal){
+  acceptModal.onclick = async () => {
+  if (localStorage.getItem("deposit_paid") !== "true") {
+    return showToast("Debes pagar el anticipo primero", false);
+  }
+
+
+
+  confirmModal.classList.add("hidden");
+  document.getElementById("loader").classList.remove("hidden");
+  confirmBtn.disabled = true;
+
+  const payload = window.tempPayload;
+  console.log("📤 Payload enviado:", payload);
+  console.log(payload)
+
+  try {
+    const payload = window.tempPayload;
+    console.log("📤 Payload enviado:", payload);
+    console.log(payload)
+
+    const res = await fetch('/api/appointments/create/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      document.getElementById("successSound").play();
+      showToast("✅ ¡Cita creada con éxito!");
+      setTimeout(() => location.reload(), 1300);
+    } else {
+      document.getElementById("errorSound").play();
+      const err = await res.text();
+      console.error("❌ Error backend:", err);
+      showToast("❌ Error al crear cita", false);
+      confirmBtn.disabled = false;
+      document.getElementById("loader").classList.add("hidden");
+    }
+    } catch (e) {
+      document.getElementById("errorSound").play();
+      console.error("🚨 Error fetch:", e);
+      showToast("🚨 Error de conexión", false);
+      confirmBtn.disabled = false;
+      document.getElementById("loader").classList.add("hidden");
+    }
+  }
+}
+
+
+  function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// Abrir perfil
+document.getElementById("profileBtn").onclick = async () => {
+  const res = await fetch("/api/appointments/profile/", { credentials: "include" });
+  const data = await res.json();
+
+  document.getElementById("profileContent").innerHTML = `
+    <div class="p-4 rounded-xl bg-white/10 backdrop-blur border border-white/20 text-gray-200 space-y-2">
+      <p><b class="text-gray-100">Nombre:</b> ${data.first_name} ${data.last_name}</p>
+      <p><b class="text-gray-100">Email:</b> ${data.email}</p>
+      <p><b class="text-gray-100">Usuario:</b> ${data.username}</p>
+      <p><b class="text-gray-100">Registrado:</b> ${data.date_joined}</p>
+    </div>
+  `;
+
+  profileModal.classList.remove("hidden");
+};
+
+// Abrir citas
+document.getElementById("myAppointmentsBtn").onclick = async () => {
+  try {
+    const res = await fetch("/api/appointments/my/", {credentials:"include"});
+
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+
+
+
+    const list = await res.json();
+
+    const statusMap = {
+    pending_payment: "🟡 Pendiente de pago",
+    scheduled: "🟢 Confirmada",
+    cancelled: "🔴 Cancelada",
+    completed: "🔵 Finalizada",
+    expired: "⚫ Expirada"
+  };
+
+    const statusClass = {
+      confirmed: "text-green-600",
+      cancelled: "text-red-600",
+      completed: "text-blue-600"
+    };
+
+    if (!list.length) {
+      appointmentsContent.innerHTML = `<p class="opacity-60">No tienes citas registradas</p>`;
+    } else {
+      appointmentsContent.innerHTML = list.map(c => `
+        <div class="appointment-card">
+          <p><b>📆 Fecha:</b> ${c.date} <b>⏰</b> ${c.time}</p>
+          <p><b>💅 Servicio(s):</b>
+            ${c.services.map(s => `${s.name}`).join(", ")}
+          </p>
+          <p><b>👩‍🔧 Manicurista:</b> ${c.employee_name}</p>
+          <p class="font-bold ${statusClass[c.status] || ''}">
+            ${statusMap[c.status] || c.status}
+          </p>
+          
+          
+          ${c.status !== "expired" ? `
+            <div class="flex gap-2 mt-2">
+              <button class="btn ghost flex-1" onclick="cancelAppointment('${c.id}')">❌ Cancelar</button>
+              <button class="btn flex-1" onclick="openReschedule(
+                '${c.id}',
+                '${c.employee_id}',
+                '${encodeURIComponent(JSON.stringify(c.services))}',
+                '${c.date}',
+                '${c.time}')">♻️ Reagendar</button>
+            </div>
+          ` : ""}
+      `).join("");
+
+
+    }
+
+    appointmentsModal.classList.remove("hidden");
+
+  } catch (err) {
+    console.error("Error cargando citas:", err);
+    alert("Error cargando tus citas. Revisa consola F12.");
+  }
+};
+
+  async function cancelAppointment(id) {
+  if (!confirm("¿Seguro que deseas cancelar esta cita?")) return;
+
+  try {
+    const res = await fetch(`/api/appointments/cancel/${id}/`, {
+      method: "POST",
+      credentials: "include"
+    });
+
+    if (res.ok) {
+      showToast("✅ Cita cancelada correctamente");
+      setTimeout(() => document.getElementById("myAppointmentsBtn").click(), 1200);
+    } else {
+      showToast("❌ No se pudo cancelar", false);
+    }
+  } catch (err) {
+    console.error("Error al cancelar cita:", err);
+    showToast("🚨 Error de conexión", false);
+  }
+}
+
+let rescheduleId = null;
+let rescheduleEmployee = "";
+let rescheduleService = "";
+let selectedNewTime = "";
+
+function openReschedule(id, employee_name, servicesEncoded, date, time) {
+  rescheduleId = id;
+  rescheduleEmployee = employee_name;
+  rescheduleService = JSON.parse(decodeURIComponent(servicesEncoded));;
+  selectedNewTime = "";
+
+  try{
+    services = JSON.parse(decodeURIComponent(servicesEncoded));
+  }catch(e){
+    console.warn("Error parsing servicesEncoded:", e);
+  }
+
+  const servicesText = rescheduleService.map(s => s.name).join(", ");
+
+  const infoDiv = document.getElementById("rescheduleInfo");
+  infoDiv.innerHTML = `
+    <p><b>💅 Manicurista:</b> ${employee_name}</p>
+    <p><b>🧴 Servicio:</b> ${servicesText}</p>
+    <p><b>📆 Fecha actual:</b> ${date} ⏰ ${time}</p>
+  `;
+
+  const today = new Date().toISOString().split("T")[0];
+  document.getElementById("newDate").min = today;
+  document.getElementById("newDate").value = "";
+  document.getElementById("availableTimes").innerHTML = "";
+
+  document.getElementById("rescheduleModal").classList.remove("hidden");
+}
+
+// 🧭 Cargar horarios disponibles al elegir nueva fecha
+document.getElementById("newDate").addEventListener("change", async (e) => {
+  const date = e.target.value;
+  if (!date || !rescheduleEmployee) return;
+
+  const res = await fetch(`/api/appointments/available/${rescheduleEmployee}/?date=${date}`, { credentials: "include" });
+  if (!res.ok) {
+    showToast("Error al cargar horarios", false);
+    return;
+  }
+
+  const data = await res.json();
+  const container = document.getElementById("availableTimes");
+  container.innerHTML = "";
+
+  if (!data.available_slots?.length) {
+    container.innerHTML = `<p class="text-sm opacity-70">No hay horarios disponibles para esta fecha.</p>`;
+    return;
+  }
+
+  data.available_slots.forEach(time => {
+    const btn = document.createElement("button");
+    btn.textContent = time;
+    btn.className = "slot-btn";
+    btn.onclick = () => {
+      selectedNewTime = time;
+      document.querySelectorAll("#availableTimes .slot-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    };
+    container.appendChild(btn);
+  });
+});
+
+// ✅ Confirmar reagendo
+document.getElementById("confirmRescheduleBtn").addEventListener("click", async () => {
+  const date = document.getElementById("newDate").value;
+  const time = selectedNewTime;
+
+  if (!date || !time) {
+    showToast("Selecciona fecha y hora disponibles", false);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/appointments/reschedule/${rescheduleId}/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ date, time })
+    });
+
+    if (res.ok) {
+      document.getElementById("rescheduleModal").classList.add("hidden");
+      showToast("♻️ Cita reagendada correctamente");
+      setTimeout(() => document.getElementById("myAppointmentsBtn").click(), 1000);
+    } else {
+      const err = await res.text();
+      console.error("Error backend reagendar:", err);
+      showToast("❌ No se pudo reagendar la cita", false);
+    }
+  } catch (err) {
+    console.error("Error al reagendar cita:", err);
+    showToast("🚨 Error de conexión", false);
+  }
+});
+
+
+  loadManicurists();
+  loadServices();
+</script>
+
+</body>
+</html>

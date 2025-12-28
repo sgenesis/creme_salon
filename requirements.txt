@@ -1,0 +1,18 @@
+Django>=5.0
+django-environ              # para manejar variables de entorno (.env)
+psycopg2-binary             # driver de PostgreSQL (puedes usar SQLite mientras desarrollas)
+Pillow                      # manejo de imágenes (si agregamos fotos de servicios o productos)
+djangorestframework         # para crear API REST (si luego conectas con frontend JS o app móvil)
+django-cors-headers         # para permitir conexión desde un frontend separado
+django-crispy-forms         # para formularios bonitos en HTML
+django-widget-tweaks        # para personalizar formularios en templates
+djangorestframework-simplejwt>=5.3.1   #seguiridad con tokens para los usuarios
+python-dotenv
+reportlab
+social-auth-app-django
+openpyxl
+mercadopago
+celery
+redis
+django-celery-beat
+

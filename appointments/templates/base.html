@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Crême Nails{% endblock %}</title>
+
+    <!-- Metropolis Font -->
+    <link href="https://fonts.cdnfonts.com/css/metropolis-2" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Metropolis', sans-serif;
+            margin: 0;
+            background: #FFFFFF;
+            color: #4D3A33;
+        }
+
+        /* NAVBAR */
+        nav {
+            background: #E6D7D0;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #D3B79B;
+        }
+
+        nav .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #4D3A33;
+        }
+
+        nav .links a {
+            text-decoration: none;
+            margin-left: 15px;
+            color: #514946;
+            font-weight: 500;
+            padding: 8px 14px;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+
+        nav .links a:hover {
+            background: #D3B79B;
+            color: #000;
+        }
+
+        .btn {
+            background: #B4806D;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            background: #AA9183;
+        }
+    </style>
+</head>
+
+<body>
+
+<nav>
+    <div class="logo">Crême Nails Salón</div>
+    <div class="links">
+        {% if user.is_superuser or user.role == 'admin' %}
+            <a href="/api/appointments/salon-dashboard/">Citas</a>
+            <a href="/api/appointments/admin-panel/" class="font-semibold" style="color:var(--text)">Administrador</a>
+            <a href="/api/appointments/ventas-rapidas/" class="font-semibold" style="color:var(--text)">Venta</a>
+            <a href="/dashboard/">📊 Ventas</a>
+        {% endif %}
+        {% if user.role == 'user' %}
+            <a href="/api/appointments/available-view/">Agendar</a>
+            <a href="/api/users/profile/">Perfil</a>
+        {% endif %}
+        <a href="#" class="btn" onclick="logout()">Salir</a>
+        <button class="btn" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+{% block content %}{% endblock %}
+
+<script>
+// ✅ AuthFetch global
+async function authFetch(url, options = {}) {
+    const token = localStorage.getItem("access_token");
+    if (!options.headers) options.headers = {};
+    if (token) options.headers["Authorization"] = `Bearer ${token}`;
+    return fetch(url, options);
+}
+
+// ✅ Logout global
+function logout() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "/api/appointments/login/";
+}
+</script>
+
+</body>
+</html>
