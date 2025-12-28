@@ -15,4 +15,4 @@ mercadopago
 celery
 redis
 django-celery-beat
-
+gunicorn
