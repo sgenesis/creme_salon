@@ -252,13 +252,19 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # Evita problemas de CSRF cuando uses fetch + JWT
-CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SECURE = False
+
 
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
+SECURE_SSL_REDIRECT = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
+SECURE_HSTS_SECONDS = 31536000  # 1 año
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 MP_WEBHOOK_URL = "https://855eb68a0138.ngrok-free.app/api/payments/webhook/"
 MP_SUCCESS_URL = "https://855eb68a0138.ngrok-free.app/pagos/exito/"
