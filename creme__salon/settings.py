@@ -23,8 +23,13 @@ MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADO_PAGO_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = [
+    os.getenv('ALLOWED_HOSTS', '').split(','),
+    ".railway.app",
+    "127.0.0.1",
+]
 
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
 
@@ -82,6 +87,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
     'email',
     'profile'
 ]
+
 
 # Pipeline (esto permite obtener foto, correo, etc)
 SOCIAL_AUTH_PIPELINE = (

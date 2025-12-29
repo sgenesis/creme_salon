@@ -19,16 +19,21 @@ from django.urls import path, include
 from django.views.generic import TemplateView
 from rest_framework.routers import DefaultRouter
 from sales.views import SaleViewSet
+from django.http import JsonResponse
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
     
 )
 
+def health(request):
+    return JsonResponse({"status": "ok"})
+
 router = DefaultRouter()
 router.register(r'sales', SaleViewSet, basename='sales')
 
 urlpatterns = [
+    path("", health),
     path('admin/', admin.site.urls),
 
     # ✅ Rutas JWT
