@@ -21,7 +21,22 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', )
 MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADO_PAGO_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+DEBUG = False
+#os.getenv('DEBUG', 'True') == 'True'
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "ERROR",
+    },
+}
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(','),
     
@@ -195,8 +210,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
 ]
 CSRF_TRUSTED_ORIGINS = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
+    "https://cremesalon-production.up.railway.app",
 ]
 
 # -------------------------------------------------------------
