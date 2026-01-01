@@ -195,7 +195,7 @@ USE_TZ = True
 # -------------------------------------------------------------
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+#STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -287,3 +287,5 @@ MP_WEBHOOK_URL = "https://855eb68a0138.ngrok-free.app/api/payments/webhook/"
 MP_SUCCESS_URL = "https://855eb68a0138.ngrok-free.app/pagos/exito/"
 MP_FAILURE_URL = "https://855eb68a0138.ngrok-free.app/pagos/error/"
 MP_PENDING_URL = "https://855eb68a0138.ngrok-free.app/pagos/pendiente/"
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
