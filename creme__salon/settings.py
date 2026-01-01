@@ -38,7 +38,7 @@ LOGGING = {
     },
 }
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(','),
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
     
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -79,7 +79,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'appointments.middleware.JWTAuthMiddleware',
+    #'appointments.middleware.JWTAuthMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
