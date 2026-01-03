@@ -54,15 +54,25 @@ def custom_login_view(request):
         return render(request, 'appointments/login.html')
 
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+
+        if not username or not password:
+            return JsonResponse(
+                {"error": "Usuario y contraseña requeridos"},
+                status=400
+            )
+
         user = authenticate(request, username=username, password=password)
 
         if user:
-            login(request, user)  # ✅ crea sesión Django
+            login(request, user)
             return JsonResponse({"ok": True})
 
-        return JsonResponse({"error": "Credenciales inválidas"}, status=401)
+        return JsonResponse(
+            {"error": "Credenciales inválidas"},
+            status=401
+        )
 # -------------------------------
 # DASHBOARD ADMIN/SUPERUSER
 # -------------------------------
