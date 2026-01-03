@@ -248,7 +248,12 @@ function renderCitas(citas) {
     tbody.innerHTML += `
       <tr>
         <td class="py-3">${c.client_name}</td>
-        <td>${c.services}</td>
+        <td>
+          ${c.services && c.services.length
+            ? c.services.map(s => s.name).join(", ")
+            : "-"
+          }
+        </td>
         <td>${c.date}</td>
         <td>${c.time}</td>
         <td>${c.manicurist_name}</td>
