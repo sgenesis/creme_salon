@@ -587,13 +587,18 @@ confirmBtn.addEventListener("click", async() => {
         .join("<br>");
 
     modalText.innerHTML = `
-        <b>Manicurista:</b> ${manicuristSelect.options[manicuristSelect.selectedIndex].text}<br>
-        <b>Servicios:</b><br>${serviciosTexto}<br>
-        <b>Duración total:</b> ${formatDuration(totalDuration)}<br>
-        <b>Fecha:</b> ${payload.date}<br>
-        <b>Hora:</b> ${payload.time}
-        <br><b>Total:</b> $${totalPrice.toFixed(2)}
-        <br><b>Anticipo (20%):</b> $${depositAmount}
+      <div class="text-gray-800 dark:text-gray-100 space-y-1">
+        <p><b>Manicurista:</b> ${manicuristSelect.options[manicuristSelect.selectedIndex].text}</p>
+        <p><b>Servicios:</b></p>
+        <p class="ml-3">${serviciosTexto}</p>
+        <p><b>Duración total:</b> ${formatDuration(totalDuration)}</p>
+        <p><b>Fecha:</b> ${payload.date}</p>
+        <p><b>Hora:</b> ${payload.time}</p>
+        <p class="font-semibold"><b>Total:</b> $${totalPrice.toFixed(2)}</p>
+        <p class="text-amber-600 font-semibold">
+          <b>Anticipo (20%):</b> $${depositAmount}
+        </p>
+      </div>
     `;
 
     confirmModal.classList.remove("hidden");
