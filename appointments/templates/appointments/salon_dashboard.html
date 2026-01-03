@@ -244,6 +244,7 @@ function renderCitas(citas) {
     if (c.total_price) total += Number(c.total_price);
     if (c.status === "completed") completed++;
 
+    console.log(c);
     tbody.innerHTML += `
       <tr>
         <td class="py-3">${c.client_name}</td>
