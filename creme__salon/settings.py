@@ -285,9 +285,9 @@ SECURE_HSTS_SECONDS = 31536000  # 1 año
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-MP_WEBHOOK_URL = "https://855eb68a0138.ngrok-free.app/api/payments/webhook/"
-MP_SUCCESS_URL = "https://855eb68a0138.ngrok-free.app/pagos/exito/"
-MP_FAILURE_URL = "https://855eb68a0138.ngrok-free.app/pagos/error/"
-MP_PENDING_URL = "https://855eb68a0138.ngrok-free.app/pagos/pendiente/"
+MP_WEBHOOK_URL = os.getenv('MP_WEBHOOK_URL')
+MP_SUCCESS_URL = os.getenv('MP_SUCCESS_URL')
+MP_FAILURE_URL = os.getenv('MP_FAILURE_URL')
+MP_PENDING_URL = os.getenv('MP_PENDING_URL')
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

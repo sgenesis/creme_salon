@@ -853,3 +853,12 @@ class AppointmentListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Appointment.objects.filter(client=self.request.user)
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def appointment_payment_status(request, appointment_id):
+    appt = get_object_or_404(Appointment, id=appointment_id)
+    return Response({
+        "deposit_paid": appt.deposit_paid,
+        "status": appt.status
+    })

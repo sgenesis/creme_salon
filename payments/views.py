@@ -20,52 +20,71 @@ sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
 
 @csrf_exempt
 def mercadopago_webhook(request):
-    data = json.loads(request.body)
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return HttpResponse(status=400)
 
-    if data.get("type") == "payment":
-        payment_id = data["data"]["id"]
+    if data.get("type") != "payment":
+        return HttpResponse(status=200)
 
-        sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
-        payment = sdk.payment().get(payment_id)["response"]
+    payment_id = data.get("data", {}).get("id")
+    if not payment_id:
+        return HttpResponse(status=200)
 
-        if payment["status"] == "approved":
-            appointment_id = payment.get("external_reference")
+    payment = sdk.payment().get(payment_id)["response"]
 
-            appointment = Appointment.objects.filter(
-                id=appointment_id
-            ).first()
+    if payment.get("status") != "approved":
+        return HttpResponse(status=200)
 
-            if not appointment:
-                return HttpResponse(status=200)
+    appointment_id = payment.get("external_reference")
+    amount = payment["transaction_amount"]
 
-            if appointment.status == "expired":
-                return HttpResponse(status=200)
+    appointment = Appointment.objects.filter(id=appointment_id).first()
+    if not appointment:
+        return HttpResponse(status=200)
 
-            if appointment.deposit_paid:
-                return HttpResponse(status=200)
+    if appointment.deposit_paid:
+        return HttpResponse(status=200)
 
-            appointment.deposit_paid = True
-            appointment.status = "scheduled"
-            appointment.payment_reference = payment_id
-            appointment.save()
+    # Validar monto
+    if float(amount) != 100.00:
+        return HttpResponse(status=200)
+
+    # Guardar pago
+    DepositPayment.objects.create(
+        appointment=appointment,
+        mp_payment_id=payment_id,
+        mp_status=payment["status"],
+        amount=amount
+    )
+
+    appointment.deposit_paid = True
+    appointment.status = "scheduled"
+    appointment.payment_reference = payment_id
+    appointment.save()
 
     return HttpResponse(status=200)
+
     
 class CreateDepositPreferenceView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        total_price = request.data.get("total_price")
-        appointment_id = request.data.get("appointment_id", "temp")
+        appointment_id = request.data.get("appointment_id")
 
-        if not total_price:
-            return Response({"error": "total_price requerido"}, status=400)
+        if not appointment_id:
+            return Response({"error": "appointment_id requerido"}, status=400)
+        
+        appointment = Appointment.objects.filter(id=appointment_id).first()
+        if not appointment:
+            return Response({"error": "Cita no encontrada"}, status=404)
 
-        deposit_amount = round(float(total_price) * 0.20, 2)
+        depositAmount = 100.00
 
         preference = create_mp_preference(
-            amount=deposit_amount,
-            description="Anticipo de cita (20%)",
+            deposit_amount=depositAmount,
+            description="Anticipo fijp $100",
             appointment_id=appointment_id
         )
 
@@ -75,36 +94,15 @@ class CreateDepositPreferenceView(APIView):
         
 class PaymentSuccessView(APIView):
     def get(self, request):
-        payment_id = request.GET.get("payment_id")
-        status = request.GET.get("status")
-
-        if status == "approved":
-            metadata = request.GET  # aquí reconstruyes la cita
-            Appointment.objects.create(
-                client=request.user,
-                deposit_paid=True,
-                payment_reference=payment_id,
-                
-            )
-
         return redirect("/gracias/")
     
-@api_view(["GET"])
-def deposit_status(request, appointment_id):
-    appt = Appointment.objects.get(id=appointment_id)
-    return Response({
-        "deposit_paid": appt.deposit_paid
-    })
 
 
 class CheckDepositStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, appointment_id):
-        exists = Appointment.objects.filter(
-            id=appointment_id,
-            deposit_paid=True
-        ).exists()
-
-        return Response({"paid": exists})
-
+        appt = Appointment.objects.filter(id=appointment_id).first()
+        return Response({
+            "deposit_paid": bool(appt and appt.deposit_paid)
+        })

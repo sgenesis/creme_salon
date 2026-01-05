@@ -171,6 +171,24 @@
     margin-bottom: 14px;
   }
 
+  button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .payment-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+  }
+
+  .hidden {
+    display: none;
+  } 
+
 }
 
 
@@ -189,6 +207,10 @@
         Confirmar cita
       </button>
     </div>
+    <div id="paymentWarning" class="payment-warning hidden">
+  ⚠️  Para confirmar la cita debes pagar el anticipo de $100 MXN
+    </div>
+
   </div>
 </div>
 
@@ -467,7 +489,7 @@ function showToast(msg, ok=true){
 }
 
 function calculateDeposit(total) {
-    return (total * 0.20).toFixed(2);
+    return 100;
 }
 
 
@@ -514,6 +536,8 @@ function calculateDeposit(total) {
   const cancelModal  = document.getElementById("cancelModal");
   const acceptModal  = document.getElementById("acceptModal");
   const toast        = document.getElementById("toast");
+  const paymentWarning = document.getElementById("paymentWarning");
+
   
 
 
@@ -525,87 +549,147 @@ function showToast(msg, ok=true){
 }
 
 /* ---------- Confirmar cita (abrir modal) ---------- */
-confirmBtn.addEventListener("click", async() => {
+confirmBtn.addEventListener("click", async () => {
 
-    const selectedManos = manosSelect.value;
-    const selectedPies  = piesSelect.value;
+  // =========================
+  // VALIDACIONES
+  // =========================
+  if (!manicuristSelect.value)
+    return showToast("Selecciona una manicurista", false);
 
-    if (!manicuristSelect.value)
-        return showToast("Selecciona una manicurista", false);
+  if (!manosSelect.value && !piesSelect.value)
+    return showToast("Selecciona al menos un servicio", false);
 
-    if (!selectedManos && !selectedPies)
-        return showToast("Elige al menos un servicio", false);
+  if (!datePicker.value)
+    return showToast("Selecciona una fecha", false);
 
-    if (!datePicker.value)
-        return showToast("Selecciona una fecha", false);
+  if (!selectedSlot)
+    return showToast("Selecciona un horario", false);
 
-    if (!selectedSlot)
-        return showToast("Selecciona un horario", false);
+  // =========================
+  // DATOS
+  // =========================
+  const totalPrice = calculateTotalPrice();
+  const depositAmount = calculateDeposit(totalPrice);
+  const totalDuration = getTotalDuration();
 
-    const totalPrice = calculateTotalPrice();
-    const depositAmount = calculateDeposit(totalPrice);
-    const totalDuration = getTotalDuration();
-    
+  const serviciosSeleccionados = [];
+  if (manosSelect.value) serviciosSeleccionados.push(manosSelect.value);
+  if (piesSelect.value)  serviciosSeleccionados.push(piesSelect.value);
 
+  const payload = {
+    employee: manicuristSelect.value,
+    service_manos: manosSelect.value || null,
+    service_pies: piesSelect.value || null,
+    date: datePicker.value,
+    time: selectedSlot,
+    duration_hours: totalDuration,
+    notes: ""
+  };
 
-    // 📌 Creamos arreglo de servicios
-    const serviciosSeleccionados = [];
-    if (selectedManos) serviciosSeleccionados.push(selectedManos);
-    if (selectedPies)  serviciosSeleccionados.push(selectedPies);
+  // =========================
+  // RENDER MODAL
+  // =========================
+  const serviciosTexto = serviciosSeleccionados
+    .map(id => {
+      const s = allServices.find(x => x.id == id);
+      return `• ${s.name} — ${formatDuration(s.duration_hours)} — $${parseFloat(s.price).toFixed(2)}`;
+    })
+    .join("<br>");
 
-    confirmModal.classList.remove("hidden");
-    document.getElementById("confirm-appointment-btn").disabled = true;
-    localStorage.removeItem("deposit_paid");
+  modalText.innerHTML = `
+    <div class="text-gray-800 dark:text-gray-100 space-y-1">
+      <p><b>Manicurista:</b> ${manicuristSelect.options[manicuristSelect.selectedIndex].text}</p>
+      <p><b>Servicios:</b></p>
+      <p class="ml-3">${serviciosTexto}</p>
+      <p><b>Duración total:</b> ${formatDuration(totalDuration)}</p>
+      <p><b>Fecha:</b> ${payload.date}</p>
+      <p><b>Hora:</b> ${payload.time}</p>
+      <p class="font-semibold"><b>Total:</b> $${totalPrice.toFixed(2)}</p>
+      <p class="text-amber-600 font-semibold">
+        <b>Anticipo fijo:</b> $${depositAmount}
+      </p>
+    </div>
+  `;
 
+  confirmModal.classList.remove("hidden");
 
-    const payload = {
-        employee: manicuristSelect.value,
-        service_manos: selectedManos || null,
-        service_pies: selectedPies || null,
-        date: datePicker.value,
-        time: selectedSlot,
-        duration_hours: totalDuration,
-        notes: ""
-    };
+  const confirmAppointmentBtn = document.getElementById("confirm-appointment-btn");
+  confirmAppointmentBtn.disabled = true;
+  paymentWarning.classList.remove("hidden");
 
-    
+  // =========================
+  // CREAR CITA PENDIENTE
+  // =========================
+  const res = await fetch("/api/appointments/create-pending/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCookie("csrftoken")
+    },
+    credentials: "include",
+    body: JSON.stringify(payload)
+  });
 
-      if (!payload.employee) return showToast("Selecciona una manicurista", false);
-      if (!payload.service_manos && !payload.service_pies)
-        return showToast("Selecciona al menos un servicio", false);
-      if (!payload.date)     return showToast("Selecciona una fecha", false);
-      if (!payload.time)     return showToast("Selecciona un horario", false);
+  if (!res.ok) {
+    confirmModal.classList.add("hidden");
+    return showToast("Error creando cita pendiente", false);
+  }
 
-      // ==== Render del modal ====
+  const { appointment_id } = await res.json();
 
+  // =========================
+  // VERIFICAR PAGO (POLLING)
+  // =========================
+  const intervalId = setInterval(async () => {
+    try {
+      const r = await fetch(`/api/appointments/${appointment_id}/payment-status/`, {
+        credentials: "include"
+      });
 
-    let serviciosTexto = serviciosSeleccionados
-        .map(id => {
-            const s = allServices.find(x => x.id == id);
-            return `${s.name} (${formatDuration(s.duration_hours)})`;
-        })
-        .join("<br>");
+      if (!r.ok) return;
 
-    modalText.innerHTML = `
-      <div class="text-gray-800 dark:text-gray-100 space-y-1">
-        <p><b>Manicurista:</b> ${manicuristSelect.options[manicuristSelect.selectedIndex].text}</p>
-        <p><b>Servicios:</b></p>
-        <p class="ml-3">${serviciosTexto}</p>
-        <p><b>Duración total:</b> ${formatDuration(totalDuration)}</p>
-        <p><b>Fecha:</b> ${payload.date}</p>
-        <p><b>Hora:</b> ${payload.time}</p>
-        <p class="font-semibold"><b>Total:</b> $${totalPrice.toFixed(2)}</p>
-        <p class="text-amber-600 font-semibold">
-          <b>Anticipo (20%):</b> $${depositAmount}
-        </p>
-      </div>
-    `;
+      const data = await r.json();
 
-    confirmModal.classList.remove("hidden");
-    const confirmAppointmentBtn = document.getElementById("confirm-appointment-btn");
-    confirmAppointmentBtn.disabled = true;
+      if (data.deposit_paid) {
+        clearInterval(intervalId);
+        paymentWarning.classList.add("hidden");
+        confirmAppointmentBtn.disabled = false;
+        showToast("✅ Anticipo confirmado");
+      }
+    } catch (e) {
+      console.warn("Error verificando pago", e);
+    }
+  }, 5000);
 
-    const resPending = await fetch("/api/appointments/create-pending/", {
+  // =========================
+  // BOTÓN PAGAR ANTICIPO
+  // =========================
+  document.getElementById("mp-pay-btn").onclick = async () => {
+    const r = await fetch("/api/payments/create-preference/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken")
+      },
+      body: JSON.stringify({
+        total_price: depositAmount,
+        appointment_id
+      })
+    });
+
+    const data = await r.json();
+    window.location.href = data.init_point;
+  };
+
+  // =========================
+  // CONFIRMAR DEFINITIVO
+  // =========================
+  confirmAppointmentBtn.onclick = async () => {
+    confirmModal.classList.add("hidden");
+    document.getElementById("loader").classList.remove("hidden");
+
+    const r = await fetch("/api/appointments/create/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -615,36 +699,20 @@ confirmBtn.addEventListener("click", async() => {
       body: JSON.stringify(payload)
     });
 
-    if (!resPending.ok) {
-      return showToast("Error creando cita pendiente", false);
+    document.getElementById("loader").classList.add("hidden");
+
+    if (r.ok) {
+      document.getElementById("successSound").play();
+      showToast("✅ ¡Cita creada con éxito!");
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      document.getElementById("errorSound").play();
+      showToast("❌ Error al confirmar la cita", false);
     }
+  };
 
-    const pendingData = await resPending.json();
-    const appointmentId = pendingData.appointment_id;
-
-
-    document.getElementById("mp-pay-btn").onclick = async () => {
-      confirmAppointmentBtn.disabled = true;
-
-      const res = await fetch("/api/payments/create-preference/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCookie("csrftoken")
-        },
-        body: JSON.stringify({
-          total_price: calculateTotalPrice(),
-          appointment_id: appointmentId
-        })
-      });
-
-      const data = await res.json();
-      window.location.href = data.init_point;
-    };
-
-    // Guardamos temporal
-    window.tempPayload = payload;
 });
+
 
 window.addEventListener("message", (event) => {
   if (event.data === "deposit_paid") {
@@ -656,62 +724,59 @@ window.addEventListener("message", (event) => {
 });
 
 
-
 //MOdal Acciones
 cancelModal.onclick = () => confirmModal.classList.add("hidden");
 
-if(acceptModal){
-  acceptModal.onclick = async () => {
-  if (localStorage.getItem("deposit_paid") !== "true") {
-    return showToast("Debes pagar el anticipo primero", false);
-  }
+// if(acceptModal){
+//   acceptModal.onclick = async () => {
+//   if (localStorage.getItem("deposit_paid") !== "true") {
+//     return showToast("Debes pagar el anticipo primero", false);
+//   }
 
+//   confirmModal.classList.add("hidden");
+//   document.getElementById("loader").classList.remove("hidden");
+//   confirmBtn.disabled = true;
 
+//   const payload = window.tempPayload;
+//   console.log("📤 Payload enviado:", payload);
+//   console.log(payload)
 
-  confirmModal.classList.add("hidden");
-  document.getElementById("loader").classList.remove("hidden");
-  confirmBtn.disabled = true;
+//   try {
+//     const payload = window.tempPayload;
+//     console.log("📤 Payload enviado:", payload);
+//     console.log(payload)
 
-  const payload = window.tempPayload;
-  console.log("📤 Payload enviado:", payload);
-  console.log(payload)
+//     const res = await fetch('/api/appointments/create/', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'X-CSRFToken': getCookie('csrftoken'),
+//       },
+//       credentials: 'include',
+//       body: JSON.stringify(payload)
+//     });
 
-  try {
-    const payload = window.tempPayload;
-    console.log("📤 Payload enviado:", payload);
-    console.log(payload)
-
-    const res = await fetch('/api/appointments/create/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken'),
-      },
-      credentials: 'include',
-      body: JSON.stringify(payload)
-    });
-
-    if (res.ok) {
-      document.getElementById("successSound").play();
-      showToast("✅ ¡Cita creada con éxito!");
-      setTimeout(() => location.reload(), 1300);
-    } else {
-      document.getElementById("errorSound").play();
-      const err = await res.text();
-      console.error("❌ Error backend:", err);
-      showToast("❌ Error al crear cita", false);
-      confirmBtn.disabled = false;
-      document.getElementById("loader").classList.add("hidden");
-    }
-    } catch (e) {
-      document.getElementById("errorSound").play();
-      console.error("🚨 Error fetch:", e);
-      showToast("🚨 Error de conexión", false);
-      confirmBtn.disabled = false;
-      document.getElementById("loader").classList.add("hidden");
-    }
-  }
-}
+//     if (res.ok) {
+//       document.getElementById("successSound").play();
+//       showToast("✅ ¡Cita creada con éxito!");
+//       setTimeout(() => location.reload(), 1300);
+//     } else {
+//       document.getElementById("errorSound").play();
+//       const err = await res.text();
+//       console.error("❌ Error backend:", err);
+//       showToast("❌ Error al crear cita", false);
+//       confirmBtn.disabled = false;
+//       document.getElementById("loader").classList.add("hidden");
+//     }
+//     } catch (e) {
+//       document.getElementById("errorSound").play();
+//       console.error("🚨 Error fetch:", e);
+//       showToast("🚨 Error de conexión", false);
+//       confirmBtn.disabled = false;
+//       document.getElementById("loader").classList.add("hidden");
+//     }
+//   }
+// }
 
 
   function getCookie(name) {

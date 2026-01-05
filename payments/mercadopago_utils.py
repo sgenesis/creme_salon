@@ -23,7 +23,7 @@ def create_mp_preference(*, amount, description, appointment_id):
         },
     }
 
-    return sdk.preference().create(preference_data)["response"]
+    result = sdk.preference().create(preference_data)
 
     if result["status"] not in (200, 201):
         raise Exception(f"MercadoPago error: {result}")

@@ -147,7 +147,7 @@ class Appointment(models.Model):
 
         # 💵 Definir anticipo automático (ej. 20%)
         if self.requires_deposit and self.deposit_amount == 0:
-            self.deposit_amount = (total * Decimal('0.20')).quantize(Decimal('0.01'))
+            self.deposit_amount = Decimal('100.00')
             
         super().save(*args, **kwargs)
 
